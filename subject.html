@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>과제 제출 및 조회 시스템</title>
+    <!-- Tailwind CSS 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 커스텀 스타일 */
+        body {
+            /* 요청하신 파스텔 그라데이션 배경 */
+            background-image: linear-gradient(to right, #a0c4ff, #ffc0cb);
+            font-family: 'Inter', 'Noto Sans KR', sans-serif; /* 가독성 좋은 폰트 */
+        }
+
+        /* 요청하신 그라데이션 버튼 스타일 */
+        .gradient-btn {
+            background-image: linear-gradient(to right, #6b89ff 0%, #ff86a4 100%);
+            transition: all 0.3s ease;
+        }
+        .gradient-btn:hover {
+            box-shadow: 0 4px 15px 0 rgba(179, 157, 219, 0.75);
+            transform: translateY(-2px); /* 살짝 떠오르는 효과 */
+        }
+
+        /* 로딩 스피너 스타일 */
+        .loader {
+            border: 4px solid #f3f3f3; /* Light grey */
+            border-top: 4px solid #6b89ff; /* Blue */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            position: fixed; /* 화면 중앙에 고정 */
+            top: 50%;
+            left: 50%;
+            margin-top: -20px;
+            margin-left: -20px;
+            z-index: 100;
+            display: none; /* 기본 숨김 */
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* 링크 잘림 방지 스타일 */
+        .table-cell-content {
+            max-width: 200px; /* 셀의 최대 너비 고정 */
+            overflow: hidden;
+            text-overflow: ellipsis; /* ...으로 생략 */
+            white-space: nowrap;
+            display: block; /* block으로 만들어야 max-width가 적용됨 */
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 로딩 스피너 -->
+    <div id="loader" class="loader"></div>
+
+    <div class="container mx-auto max-w-5xl w-full">
+        <h1 class="text-3xl md:text-4xl font-bold text-white text-center mb-8" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.2);">
+            학생 과제 제출 및 조회
+        </h1>
+
+        <!-- 메인 컨텐츠 영역 (2단 그리드) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- 1. 과제 제출 섹션 -->
+            <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">과제 제출</h2>
+                <form id="submit-form" class="space-y-4">
+                    <div>
+                        <label for="student-id" class="block text-sm font-medium text-gray-700 mb-1">학번</label>
+                        <input type="text" id="student-id" name="id" required placeholder="예) 10101"
+                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
+                    </div>
+                    <div>
+                        <label for="student-name" class="block text-sm font-medium text-gray-700 mb-1">이름</label>
+                        <input type="text" id="student-name" name="name" required placeholder="예) 홍길동"
+                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
+                    </div>
+                    <div>
+                        <label for="assignment-name" class="block text-sm font-medium text-gray-700 mb-1">과제명</label>
+                        <input type="text" id="assignment-name" name="assignment" required placeholder="예) 수학 보고서"
+                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
+                    </div>
+                    <div>
+                        <!-- ★★★ 변경됨: 안내 문구 수정 ★★★ -->
+                        <label for="submission-content" class="block text-sm font-medium text-gray-700 mb-1">
+                            Google Drive 파일 공유 링크
+                            <span class="text-xs text-gray-500">(권한: '링크가 있는 모든 사용자')</span>
+                        </label>
+                        <input type="url" id="submission-content" name="content" required 
+                               placeholder="파일 '공유' > '링크 복사' 후 여기에 붙여넣으세요"
+                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
+                    </div>
+                    <button type="submit" class="w-full text-white font-bold py-3 px-4 rounded-lg gradient-btn">
+                        제출하기
+                    </button>
+                </form>
+            </div>
+
+            <!-- 2. 제출 학생 조회 섹션 -->
+            <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6">제출 학생 조회</h2>
+                <form id="query-form" class="space-y-4">
+                    <div>
+                        <label for="query-id" class="block text-sm font-medium text-gray-700 mb-1">학번 (선택 사항)</label>
+                        <input type="text" id="query-id" name="id" placeholder="학번으로 필터링"
+                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
+                    </div>
+                    <div>
+                        <label for="query-name" class="block text-sm font-medium text-gray-700 mb-1">이름 (선택 사항)</label>
+                        <input type="text" id="query-name" name="name" placeholder="이름으로 필터링"
+                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
+                    </div>
+                    <button type="submit" class="w-full text-white font-bold py-3 px-4 rounded-lg gradient-btn">
+                        조회하기
+                    </button>
+                </form>
+
+                <!-- 상태 메시지 영역 -->
+                <div id="status-message" class="mt-4 text-center font-medium h-6"></div>
+
+                <!-- 3. 조회 결과 영역 -->
+                <div class="mt-6">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">조회 결과</h3>
+                    <div id="results-container" class="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
+                        <table id="results-table" class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제출일시</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">학번</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">과제명</th>
+                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제출내용 (파일링크)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="results-body" class="bg-white divide-y divide-gray-200">
+                                <!-- JS로 데이터가 채워집니다 -->
+                                <tr>
+                                    <td colspan="5" class="px-4 py-4 text-center text-gray-500">조회할 조건을 입력하고 '조회하기'를 눌러주세요. (모두 비우면 전체 조회)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ★★★ 중요 ★★★ ---
+        // 1. Code.gs 파일을 Google Apps Script에 배포합니다.
+        // 2. '배포' > '새 배포' > '웹 앱'으로 배포합니다.
+        // 3. '액세스 권한이 있는 사용자'를 '누구나(Anyone)'로 설정합니다.
+        // 4. 배포 후 생성된 '웹 앱 URL'을 복사하여 아래 변수에 붙여넣으세요.
+        const SCRIPT_URL = '여기에_배포된_스크립트_URL_입력'; // <--- 이 부분을 꼭 교체해 주세요!
+        // --- ★★★ 중요 ★★★ ---
+
+        // DOM 요소 선택
+        const submitForm = document.getElementById('submit-form');
+        const queryForm = document.getElementById('query-form');
+        const loader = document.getElementById('loader');
+        const statusMessage = document.getElementById('status-message');
+        const resultsBody = document.getElementById('results-body');
+
+        // 제출 폼 이벤트 리스너
+        submitForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // 유효성 검사
+            if (!submitForm.checkValidity()) {
+                showStatus('모든 필수 항목을 입력하세요.', 'error');
+                return;
+            }
+
+            showLoader(true);
+            showStatus('', 'info'); // 메시지 초기화
+
+            const formData = new FormData(submitForm);
+            const data = {
+                action: 'submit',
+                id: formData.get('id'),
+                name: formData.get('name'),
+                assignment: formData.get('assignment'),
+                content: formData.get('content') // 학생이 입력한 원본 Google Drive 링크
+            };
+
+            try {
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'cors', // CORS 모드
+                    body: JSON.stringify(data),
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8',
+                    }
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    showStatus('과제가 성공적으로 제출되었습니다!', 'success');
+                    submitForm.reset(); // 폼 초기화
+                } else {
+                    throw new Error(result.message || '알 수 없는 오류가 발생했습니다.');
+                }
+            } catch (error) {
+                console.error('Submit Error:', error);
+                showStatus(`제출 실패: ${error.message}.`, 'error');
+            } finally {
+                showLoader(false);
+            }
+        });
+
+        // 조회 폼 이벤트 리스너
+        queryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            showLoader(true);
+            showStatus('조회 중...', 'info');
+            resultsBody.innerHTML = ''; // 테이블 초기화
+
+            const formData = new FormData(queryForm);
+            const queryId = formData.get('id');
+            const queryName = formData.get('name');
+
+            // GET 요청을 위한 URL 쿼리 파라미터 생성
+            const queryParams = new URLSearchParams({
+                action: 'query',
+                id: queryId,
+                name: queryName
+            });
+
+            try {
+                // SCRIPT_URL에 쿼리 파라미터를 붙여 GET 요청
+                const response = await fetch(`${SCRIPT_URL}?${queryParams}`);
+                
+                if (!response.ok) {
+                    throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
+                }
+
+                const results = await response.json();
+
+                // 'status':'error' 객체가 반환된 경우
+                if (results.status === 'error') {
+                    throw new Error(results.message);
+                }
+
+                // 정상적인 배열이 반환된 경우
+                if (Array.isArray(results)) {
+                    if (results.length === 0) {
+                        resultsBody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">데이터가 없습니다.</td></tr>`;
+                        showStatus('조회 완료. 데이터가 없습니다.', 'info');
+                    } else {
+                        // (제출일시, 학번, 이름, 과제명, 제출내용) 순서
+                        results.forEach(row => {
+                            const tr = document.createElement('tr');
+                            
+                            // ★★★ 변경됨: 링크를 클릭 가능한 <a> 태그로 만듦 ★★★
+                            const escapedUrl = escapeHTML(row[4]);
+                            let contentCellHTML = escapedUrl; // 기본값 (링크가 아닌 경우)
+                            
+                            if (escapedUrl.startsWith('http')) {
+                                // 링크인 경우 <a> 태그로 감싸고, 주소가 너무 길면 잘라서 표시
+                                contentCellHTML = `<a href="${escapedUrl}" target="_blank" class="text-blue-600 hover:underline" title="${escapedUrl}">
+                                                    <span class="table-cell-content">${escapedUrl}</span>
+                                                 </a>`;
+                            } else {
+                                // 링크가 아니면(예: 구 버전 데이터) 그냥 텍스트로 표시
+                                contentCellHTML = `<span class="table-cell-content">${escapedUrl}</span>`;
+                            }
+
+                            tr.innerHTML = `
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[0])}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[1])}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[2])}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[3])}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${contentCellHTML}</td>
+                            `;
+                            // ★★★ 변경 종료 ★★★
+
+                            resultsBody.appendChild(tr);
+                        });
+                        showStatus(`${results.length}건의 데이터가 조회되었습니다.`, 'success');
+                    }
+                } else {
+                    // results가 배열이 아닌 경우 (예상치 못한 응답)
+                    throw new Error('잘못된 형식의 응답을 받았습니다.');
+                }
+            } catch (error) {
+                console.error('Query Error:', error);
+                showStatus(`조회 실패: ${error.message}.`, 'error');
+                resultsBody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-red-500">오류 발생: ${error.message}</td></tr>`;
+            } finally {
+                showLoader(false);
+            }
+        });
+
+        // 로더 표시/숨김 함수
+        function showLoader(show) {
+            loader.style.display = show ? 'block' : 'none';
+        }
+
+        // 상태 메시지 표시 함수
+        function showStatus(message, type = 'info') {
+            statusMessage.textContent = message;
+            statusMessage.classList.remove('text-green-600', 'text-red-600', 'text-gray-700');
+            if (type === 'success') {
+                statusMessage.classList.add('text-green-600');
+            } else if (type === 'error') {
+                statusMessage.classList.add('text-red-600');
+            } else {
+                statusMessage.classList.add('text-gray-700');
+            }
+        }
+
+        // 간단한 XSS 방지를 위한 HTML 이스케이프 함수
+        function escapeHTML(str) {
+            if (str === null || str === undefined) return '';
+            // 문자열이 아닌 경우 문자열로 변환
+            return str.toString()
+                      .replace(/&/g, '&amp;')
+                      .replace(/</g, '&lt;')
+                      .replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;')
+                      .replace(/'/g, '&#039;');
+        }
+
+    </script>
+</body>
+</html>
