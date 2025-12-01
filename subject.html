@@ -3,334 +3,415 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>과제 제출 및 조회 시스템</title>
-    <!-- Tailwind CSS 로드 -->
+    <title>수업용 이슈 탐색기 (AI Powered)</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
     <style>
-        /* 커스텀 스타일 */
         body {
-            /* 요청하신 파스텔 그라데이션 배경 */
-            background-image: linear-gradient(to right, #a0c4ff, #ffc0cb);
-            font-family: 'Inter', 'Noto Sans KR', sans-serif; /* 가독성 좋은 폰트 */
+            font-family: 'Noto Sans KR', sans-serif;
+            background: linear-gradient(135deg, #f3e8ff 0%, #e0c3fc 50%, #d8b4fe 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* 요청하신 그라데이션 버튼 스타일 */
-        .gradient-btn {
-            background-image: linear-gradient(to right, #6b89ff 0%, #ff86a4 100%);
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 10px 40px -10px rgba(100, 50, 200, 0.15);
+            transition: all 0.5s ease-in-out;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.5);
             transition: all 0.3s ease;
         }
-        .gradient-btn:hover {
-            box-shadow: 0 4px 15px 0 rgba(179, 157, 219, 0.75);
-            transform: translateY(-2px); /* 살짝 떠오르는 효과 */
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
         }
 
-        /* 로딩 스피너 스타일 */
-        .loader {
-            border: 4px solid #f3f3f3; /* Light grey */
-            border-top: 4px solid #6b89ff; /* Blue */
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            position: fixed; /* 화면 중앙에 고정 */
-            top: 50%;
-            left: 50%;
-            margin-top: -20px;
-            margin-left: -20px;
-            z-index: 100;
-            display: none; /* 기본 숨김 */
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* 형광펜 효과 */
+        .highlight-marker {
+            background: linear-gradient(120deg, transparent 50%, #d8b4fe 50%);
+            background-size: 100% 200%;
+            background-position: 0 100%;
+            display: inline;
+            transition: background-position 0.3s;
         }
         
-        /* 링크 잘림 방지 스타일 */
-        .table-cell-content {
-            max-width: 200px; /* 셀의 최대 너비 고정 */
-            overflow: hidden;
-            text-overflow: ellipsis; /* ...으로 생략 */
-            white-space: nowrap;
-            display: block; /* block으로 만들어야 max-width가 적용됨 */
+        .glass-card:hover .highlight-marker {
+            background-position: 0 50%;
+        }
+
+        /* 로더 */
+        .loader {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #9333ea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        /* 결과 박스 스타일 */
+        .result-box {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid #e9d5ff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            animation: slideDown 0.5s ease-out forwards;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4">
+<body class="p-4">
 
-    <!-- 로딩 스피너 -->
-    <div id="loader" class="loader"></div>
-
-    <div class="container mx-auto max-w-5xl w-full">
-        <h1 class="text-3xl md:text-4xl font-bold text-white text-center mb-8" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.2);">
-            학생 과제 제출 및 조회
-        </h1>
-
-        <!-- 메인 컨텐츠 영역 (2단 그리드) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-            <!-- 1. 과제 제출 섹션 -->
-            <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">과제 제출</h2>
-                <form id="submit-form" class="space-y-4">
-                    <div>
-                        <label for="student-id" class="block text-sm font-medium text-gray-700 mb-1">학번</label>
-                        <input type="text" id="student-id" name="id" required placeholder="예) 10101"
-                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
-                    </div>
-                    <div>
-                        <label for="student-name" class="block text-sm font-medium text-gray-700 mb-1">이름</label>
-                        <input type="text" id="student-name" name="name" required placeholder="예) 홍길동"
-                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
-                    </div>
-                    <div>
-                        <label for="assignment-name" class="block text-sm font-medium text-gray-700 mb-1">과제명</label>
-                        <input type="text" id="assignment-name" name="assignment" required placeholder="예) 수학 보고서"
-                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
-                    </div>
-                    <div>
-                        <!-- ★★★ 변경됨: 안내 문구 수정 ★★★ -->
-                        <label for="submission-content" class="block text-sm font-medium text-gray-700 mb-1">
-                            Google Drive 파일 공유 링크
-                            <span class="text-xs text-gray-500">(권한: '링크가 있는 모든 사용자')</span>
-                        </label>
-                        <input type="url" id="submission-content" name="content" required 
-                               placeholder="파일 '공유' > '링크 복사' 후 여기에 붙여넣으세요"
-                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
-                    </div>
-                    <button type="submit" class="w-full text-white font-bold py-3 px-4 rounded-lg gradient-btn">
-                        제출하기
-                    </button>
-                </form>
-            </div>
-
-            <!-- 2. 제출 학생 조회 섹션 -->
-            <div class="bg-white rounded-xl shadow-2xl p-6 md:p-8">
-                <h2 class="text-2xl font-bold text-gray-800 mb-6">제출 학생 조회</h2>
-                <form id="query-form" class="space-y-4">
-                    <div>
-                        <label for="query-id" class="block text-sm font-medium text-gray-700 mb-1">학번 (선택 사항)</label>
-                        <input type="text" id="query-id" name="id" placeholder="학번으로 필터링"
-                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
-                    </div>
-                    <div>
-                        <label for="query-name" class="block text-sm font-medium text-gray-700 mb-1">이름 (선택 사항)</label>
-                        <input type="text" id="query-name" name="name" placeholder="이름으로 필터링"
-                               class="w-full p-3 border-2 border-blue-400 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 transition duration-200">
-                    </div>
-                    <button type="submit" class="w-full text-white font-bold py-3 px-4 rounded-lg gradient-btn">
-                        조회하기
-                    </button>
-                </form>
-
-                <!-- 상태 메시지 영역 -->
-                <div id="status-message" class="mt-4 text-center font-medium h-6"></div>
-
-                <!-- 3. 조회 결과 영역 -->
-                <div class="mt-6">
-                    <h3 class="text-xl font-semibold text-gray-800 mb-4">조회 결과</h3>
-                    <div id="results-container" class="overflow-x-auto max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
-                        <table id="results-table" class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50 sticky top-0">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제출일시</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">학번</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">과제명</th>
-                                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제출내용 (파일링크)</th>
-                                </tr>
-                            </thead>
-                            <tbody id="results-body" class="bg-white divide-y divide-gray-200">
-                                <!-- JS로 데이터가 채워집니다 -->
-                                <tr>
-                                    <td colspan="5" class="px-4 py-4 text-center text-gray-500">조회할 조건을 입력하고 '조회하기'를 눌러주세요. (모두 비우면 전체 조회)</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+    <!-- 메인 컨테이너 (초기엔 작게, 내용이 생기면 늘어남) -->
+    <div class="glass-panel w-full max-w-5xl rounded-3xl p-6 sm:p-10 relative flex flex-col items-center mx-auto transition-all duration-500" id="mainPanel">
+        
+        <!-- API 키 설정 (우측 상단) -->
+        <div class="absolute top-4 right-4 sm:top-6 sm:right-6 z-20">
+            <div class="relative group">
+                <button onclick="toggleApiKeyInput()" class="bg-white p-2 rounded-full shadow hover:text-purple-600 transition-colors text-gray-400" title="API 키 설정">
+                    <i class="fas fa-key"></i>
+                </button>
+                <div class="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-2xl p-5 hidden group-hover:block hover:block border border-purple-100 z-50" id="apiKeyTooltip">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">Google Gemini API Key</label>
+                    <input type="password" id="userApiKey" 
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none transition-all"
+                        placeholder="AIzaSy... (여기에 키를 붙여넣으세요)"
+                        onchange="saveApiKey(this.value)">
+                    <p class="text-xs text-gray-500 leading-snug">
+                        * 키가 없다면 <a href="https://aistudio.google.com/app/apikey" target="_blank" class="text-purple-600 underline">Google AI Studio</a>에서 무료로 발급받으세요.<br>
+                        * 브라우저에만 안전하게 저장됩니다.
+                    </p>
                 </div>
             </div>
         </div>
+
+        <!-- 헤더 -->
+        <header class="text-center mb-8 w-full">
+            <h1 class="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-2">
+                <span class="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-blue-500">주제 연결 & 탐색기</span>
+                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full border border-purple-200">AI Powered ✨</span>
+            </h1>
+            <p class="text-gray-500 text-sm">두 주제의 연결고리를 AI가 찾아드립니다.</p>
+        </header>
+
+        <!-- 에러 메시지 -->
+        <div id="errorToast" class="hidden w-full bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg mb-6 flex items-start gap-3 text-sm">
+            <i class="fas fa-exclamation-circle mt-0.5"></i>
+            <span id="errorMessage"></span>
+        </div>
+
+        <!-- 듀얼 검색창 (가로 배치) -->
+        <div class="flex flex-col md:flex-row items-end justify-center gap-3 w-full max-w-3xl mb-4 transition-all" id="searchSection">
+            <!-- 주제 A -->
+            <div class="w-full flex-1 group">
+                <label class="block text-purple-700 font-bold text-sm mb-1 ml-1 text-center">주제 A</label>
+                <input type="text" id="topicA" 
+                    class="w-full bg-white/60 border border-white rounded-xl px-4 py-3 text-center focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all shadow-sm placeholder-gray-400"
+                    placeholder="예: 바로크 음악" onkeypress="handleEnter(event)">
+            </div>
+
+            <!-- 연결 고리 -->
+            <div class="text-purple-300 text-xl pb-3 animate-pulse">
+                <i class="fas fa-link"></i>
+            </div>
+
+            <!-- 주제 B -->
+            <div class="w-full flex-1 group">
+                <label class="block text-purple-700 font-bold text-sm mb-1 ml-1 text-center">주제 B</label>
+                <input type="text" id="topicB" 
+                    class="w-full bg-white/60 border border-white rounded-xl px-4 py-3 text-center focus:outline-none focus:ring-2 focus:ring-purple-400 focus:bg-white transition-all shadow-sm placeholder-gray-400"
+                    placeholder="예: 바로크 건축" onkeypress="handleEnter(event)">
+            </div>
+            
+            <!-- 분석 버튼 -->
+            <button onclick="analyzeTopics()" 
+                class="w-full md:w-auto h-[50px] bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-xl px-6 font-bold shadow-lg transform active:scale-95 transition-all flex items-center justify-center gap-2 whitespace-nowrap">
+                <span>분석하기</span> <i class="fas fa-magic"></i>
+            </button>
+        </div>
+
+        <!-- 로딩 인디케이터 -->
+        <div id="loadingState" class="hidden flex-col items-center justify-center py-10 w-full">
+            <div class="loader mb-4"></div>
+            <p class="text-purple-600 font-medium animate-pulse text-center text-sm">
+                Gemini가 두 주제의 관계를 깊이 있게 분석 중입니다...<br>
+                <span class="text-gray-400 text-xs mt-1">(최대 10초 정도 소요될 수 있습니다)</span>
+            </p>
+        </div>
+
+        <!-- 결과 컨테이너 (각각 분리된 박스) -->
+        <div id="resultContainer" class="hidden flex-col gap-5 w-full mt-4">
+            
+            <!-- 1. 관계성 분석 결과 박스 -->
+            <div class="result-box border-l-4 border-l-purple-500">
+                <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                    <i class="fas fa-project-diagram text-purple-600"></i>
+                    관계성 분석 리포트
+                </h3>
+                <div id="relationText" class="text-gray-700 leading-relaxed text-base break-keep">
+                    <!-- JS 내용 -->
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- 2. 추천 영상 자료 박스 -->
+                <div class="result-box" style="animation-delay: 0.1s">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <i class="fab fa-youtube text-red-500"></i>
+                        관련 심화 영상
+                    </h3>
+                    <ul id="videoList" class="space-y-2">
+                        <!-- JS 내용 -->
+                    </ul>
+                </div>
+
+                <!-- 3. 핵심 키워드 박스 -->
+                <div class="result-box" style="animation-delay: 0.2s">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <i class="fas fa-hashtag text-blue-500"></i>
+                        핵심 탐구 키워드
+                    </h3>
+                    <div id="keywordContainer" class="flex flex-wrap gap-2">
+                        <!-- JS 내용 -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- 다시하기 버튼 -->
+            <div class="text-center mt-4">
+                <button onclick="resetUI()" class="text-gray-400 hover:text-purple-600 text-sm font-medium underline transition-colors">
+                    다른 주제 검색하기
+                </button>
+            </div>
+        </div>
+        
     </div>
 
     <script>
-        // --- ★★★ 중요 ★★★ ---
-        // 1. Code.gs 파일을 Google Apps Script에 배포합니다.
-        // 2. '배포' > '새 배포' > '웹 앱'으로 배포합니다.
-        // 3. '액세스 권한이 있는 사용자'를 '누구나(Anyone)'로 설정합니다.
-        // 4. 배포 후 생성된 '웹 앱 URL'을 복사하여 아래 변수에 붙여넣으세요.
-        const SCRIPT_URL = '여기에_배포된_스크립트_URL_입력'; // <--- 이 부분을 꼭 교체해 주세요!
-        // --- ★★★ 중요 ★★★ ---
+        // 저장된 키 불러오기
+        let apiKey = localStorage.getItem('gemini_api_key') || "";
 
-        // DOM 요소 선택
-        const submitForm = document.getElementById('submit-form');
-        const queryForm = document.getElementById('query-form');
-        const loader = document.getElementById('loader');
-        const statusMessage = document.getElementById('status-message');
-        const resultsBody = document.getElementById('results-body');
+        window.onload = function() {
+            if(apiKey) {
+                document.getElementById('userApiKey').value = apiKey;
+            }
+        }
 
-        // 제출 폼 이벤트 리스너
-        submitForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // 유효성 검사
-            if (!submitForm.checkValidity()) {
-                showStatus('모든 필수 항목을 입력하세요.', 'error');
+        function saveApiKey(key) {
+            apiKey = key.trim();
+            localStorage.setItem('gemini_api_key', apiKey);
+            if(apiKey) {
+                showError(""); // 에러 메시지 초기화
+                document.getElementById('errorToast').classList.add('hidden');
+            }
+        }
+
+        function toggleApiKeyInput() {
+            document.getElementById('apiKeyTooltip').classList.toggle('hidden');
+        }
+
+        function handleEnter(e) {
+            if(e.key === 'Enter') analyzeTopics();
+        }
+
+        function showError(msg) {
+            const toast = document.getElementById('errorToast');
+            if(!msg) {
+                toast.classList.add('hidden');
+                return;
+            }
+            document.getElementById('errorMessage').innerHTML = msg;
+            toast.classList.remove('hidden');
+        }
+
+        function resetUI() {
+            document.getElementById('resultContainer').classList.add('hidden');
+            document.getElementById('resultContainer').classList.remove('flex');
+            document.getElementById('topicA').value = '';
+            document.getElementById('topicB').value = '';
+            document.getElementById('topicA').focus();
+        }
+
+        async function analyzeTopics() {
+            const topicA = document.getElementById('topicA').value.trim();
+            const topicB = document.getElementById('topicB').value.trim();
+
+            if (!topicA || !topicB) {
+                showError("두 가지 주제를 모두 입력해 주세요.");
                 return;
             }
 
-            showLoader(true);
-            showStatus('', 'info'); // 메시지 초기화
+            if (!apiKey) {
+                showError(`
+                    <strong>API 키가 필요합니다!</strong><br>
+                    우측 상단 <i class="fas fa-key"></i> 아이콘을 눌러 키를 입력해주세요.<br>
+                    <span class="text-xs mt-1 block text-red-400">키는 내 컴퓨터에만 저장되니 안심하세요.</span>
+                `);
+                // 툴팁 열기
+                document.getElementById('apiKeyTooltip').classList.remove('hidden');
+                document.getElementById('userApiKey').focus();
+                return;
+            }
 
-            const formData = new FormData(submitForm);
-            const data = {
-                action: 'submit',
-                id: formData.get('id'),
-                name: formData.get('name'),
-                assignment: formData.get('assignment'),
-                content: formData.get('content') // 학생이 입력한 원본 Google Drive 링크
-            };
+            // UI 상태 변경
+            showError(""); // 에러 숨기기
+            document.getElementById('resultContainer').classList.add('hidden');
+            document.getElementById('resultContainer').classList.remove('flex');
+            document.getElementById('loadingState').classList.remove('hidden');
+            document.getElementById('loadingState').classList.add('flex');
 
             try {
-                const response = await fetch(SCRIPT_URL, {
-                    method: 'POST',
-                    mode: 'cors', // CORS 모드
-                    body: JSON.stringify(data),
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8',
-                    }
-                });
-
-                const result = await response.json();
-
-                if (result.status === 'success') {
-                    showStatus('과제가 성공적으로 제출되었습니다!', 'success');
-                    submitForm.reset(); // 폼 초기화
-                } else {
-                    throw new Error(result.message || '알 수 없는 오류가 발생했습니다.');
-                }
+                const data = await callGeminiAPI(topicA, topicB);
+                renderResults(data, topicA, topicB);
             } catch (error) {
-                console.error('Submit Error:', error);
-                showStatus(`제출 실패: ${error.message}.`, 'error');
-            } finally {
-                showLoader(false);
+                console.error("Error:", error);
+                
+                let msg = "알 수 없는 오류가 발생했습니다. (" + error.message + ")";
+                
+                // 에러 메시지 세분화 (사용자 친화적)
+                if (error.message.includes("404")) {
+                    msg = "AI 모델 연결 오류 (404). 현재 환경에 맞는 모델로 재설정되었습니다. 다시 시도해 주세요.";
+                } else if (error.message.includes("400")) {
+                    msg = "요청 형식이 잘못되었습니다 (400). API 키가 올바른지 확인해주세요.";
+                } else if (error.message.includes("401") || error.message.includes("403")) {
+                    msg = "API 키 오류입니다 (403). 유효한 키인지 확인해주세요.";
+                } else if (error.message.includes("429")) {
+                    msg = "요청 횟수를 초과했습니다 (429). 잠시 후 다시 시도해주세요.";
+                } else if (error.message.includes("500")) {
+                    msg = "Google 서버 오류입니다 (500). 잠시 후 다시 시도해주세요.";
+                } else if (error.message.includes("Failed to fetch")) {
+                    msg = "인터넷 연결을 확인해 주세요.";
+                } else if (error.message.includes("JSON")) {
+                    msg = "AI 응답 처리 중 문제가 발생했습니다. 다시 '분석하기'를 눌러주세요.";
+                }
+                
+                showError(msg);
+                document.getElementById('loadingState').classList.add('hidden');
+                document.getElementById('loadingState').classList.remove('flex');
             }
-        });
+        }
 
-        // 조회 폼 이벤트 리스너
-        queryForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
+        async function callGeminiAPI(topicA, topicB) {
+            // [복구 완료] 현재 환경에서 지원되는 모델로 복구 (404 오류 해결)
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
             
-            showLoader(true);
-            showStatus('조회 중...', 'info');
-            resultsBody.innerHTML = ''; // 테이블 초기화
+            const prompt = `
+                역할: 교육 보조 AI
+                임무: '${topicA}'와 '${topicB}'의 연관성을 분석하고 교육 자료를 추천.
+                
+                중요: 반드시 아래의 JSON 포맷으로만 응답할 것. 마크다운(\`\`\`)이나 추가 설명을 절대 포함하지 말 것.
+                
+                {
+                    "relationship": "두 주제의 관계를 설명하는 3줄 내외의 텍스트 (한국어). 중요한 단어는 <strong>태그로 강조.",
+                    "videos": ["유튜브 검색용 문구 1", "유튜브 검색용 문구 2", "유튜브 검색용 문구 3", "유튜브 검색용 문구 4"],
+                    "keywords": ["키워드1", "키워드2", "키워드3", "키워드4", "키워드5"]
+                }
+            `;
 
-            const formData = new FormData(queryForm);
-            const queryId = formData.get('id');
-            const queryName = formData.get('name');
-
-            // GET 요청을 위한 URL 쿼리 파라미터 생성
-            const queryParams = new URLSearchParams({
-                action: 'query',
-                id: queryId,
-                name: queryName
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }]
+                })
             });
 
-            try {
-                // SCRIPT_URL에 쿼리 파라미터를 붙여 GET 요청
-                const response = await fetch(`${SCRIPT_URL}?${queryParams}`);
-                
-                if (!response.ok) {
-                    throw new Error(`서버 응답 오류: ${response.status} ${response.statusText}`);
-                }
-
-                const results = await response.json();
-
-                // 'status':'error' 객체가 반환된 경우
-                if (results.status === 'error') {
-                    throw new Error(results.message);
-                }
-
-                // 정상적인 배열이 반환된 경우
-                if (Array.isArray(results)) {
-                    if (results.length === 0) {
-                        resultsBody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-gray-500">데이터가 없습니다.</td></tr>`;
-                        showStatus('조회 완료. 데이터가 없습니다.', 'info');
-                    } else {
-                        // (제출일시, 학번, 이름, 과제명, 제출내용) 순서
-                        results.forEach(row => {
-                            const tr = document.createElement('tr');
-                            
-                            // ★★★ 변경됨: 링크를 클릭 가능한 <a> 태그로 만듦 ★★★
-                            const escapedUrl = escapeHTML(row[4]);
-                            let contentCellHTML = escapedUrl; // 기본값 (링크가 아닌 경우)
-                            
-                            if (escapedUrl.startsWith('http')) {
-                                // 링크인 경우 <a> 태그로 감싸고, 주소가 너무 길면 잘라서 표시
-                                contentCellHTML = `<a href="${escapedUrl}" target="_blank" class="text-blue-600 hover:underline" title="${escapedUrl}">
-                                                    <span class="table-cell-content">${escapedUrl}</span>
-                                                 </a>`;
-                            } else {
-                                // 링크가 아니면(예: 구 버전 데이터) 그냥 텍스트로 표시
-                                contentCellHTML = `<span class="table-cell-content">${escapedUrl}</span>`;
-                            }
-
-                            tr.innerHTML = `
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[0])}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[1])}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[2])}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${escapeHTML(row[3])}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-700">${contentCellHTML}</td>
-                            `;
-                            // ★★★ 변경 종료 ★★★
-
-                            resultsBody.appendChild(tr);
-                        });
-                        showStatus(`${results.length}건의 데이터가 조회되었습니다.`, 'success');
-                    }
-                } else {
-                    // results가 배열이 아닌 경우 (예상치 못한 응답)
-                    throw new Error('잘못된 형식의 응답을 받았습니다.');
-                }
-            } catch (error) {
-                console.error('Query Error:', error);
-                showStatus(`조회 실패: ${error.message}.`, 'error');
-                resultsBody.innerHTML = `<tr><td colspan="5" class="px-4 py-4 text-center text-red-500">오류 발생: ${error.message}</td></tr>`;
-            } finally {
-                showLoader(false);
+            if (!response.ok) {
+                // 에러 상태 코드와 텍스트를 함께 던짐
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
             }
-        });
 
-        // 로더 표시/숨김 함수
-        function showLoader(show) {
-            loader.style.display = show ? 'block' : 'none';
-        }
+            const data = await response.json();
+            
+            // 안전한 응답 접근
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                 throw new Error("AI 응답이 비어있습니다. 다른 주제로 시도해보세요.");
+            }
 
-        // 상태 메시지 표시 함수
-        function showStatus(message, type = 'info') {
-            statusMessage.textContent = message;
-            statusMessage.classList.remove('text-green-600', 'text-red-600', 'text-gray-700');
-            if (type === 'success') {
-                statusMessage.classList.add('text-green-600');
-            } else if (type === 'error') {
-                statusMessage.classList.add('text-red-600');
+            const text = data.candidates[0].content.parts[0].text;
+            
+            // JSON 추출 강화 (마크다운, 공백 제거)
+            let jsonStr = text;
+            // 1. 코드블록 제거
+            jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '');
+            
+            // 2. 앞뒤 잡다한 텍스트 제거하고 오직 { ... } 구간만 추출
+            const firstBrace = jsonStr.indexOf('{');
+            const lastBrace = jsonStr.lastIndexOf('}');
+            
+            if (firstBrace !== -1 && lastBrace !== -1) {
+                jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
             } else {
-                statusMessage.classList.add('text-gray-700');
+                throw new Error("JSON Parsing Failed: 올바른 형식이 아닙니다.");
+            }
+
+            try {
+                return JSON.parse(jsonStr);
+            } catch (e) {
+                console.error("Parsed Text:", jsonStr);
+                throw new Error("JSON Parsing Failed");
             }
         }
 
-        // 간단한 XSS 방지를 위한 HTML 이스케이프 함수
-        function escapeHTML(str) {
-            if (str === null || str === undefined) return '';
-            // 문자열이 아닌 경우 문자열로 변환
-            return str.toString()
-                      .replace(/&/g, '&amp;')
-                      .replace(/</g, '&lt;')
-                      .replace(/>/g, '&gt;')
-                      .replace(/"/g, '&quot;')
-                      .replace(/'/g, '&#039;');
-        }
+        function renderResults(data, topicA, topicB) {
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('loadingState').classList.remove('flex');
+            document.getElementById('resultContainer').classList.remove('hidden');
+            document.getElementById('resultContainer').classList.add('flex');
 
+            // 1. 관계성
+            let relHtml = data.relationship.replace(/<strong>(.*?)<\/strong>/g, '<span class="highlight-marker font-bold">$1</span>');
+            document.getElementById('relationText').innerHTML = relHtml;
+
+            // 2. 영상
+            const vList = document.getElementById('videoList');
+            vList.innerHTML = '';
+            data.videos.forEach(v => {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(v)}" target="_blank" 
+                       class="flex items-center p-2 hover:bg-gray-50 rounded-lg transition-colors group text-sm text-gray-700">
+                       <span class="w-6 text-center text-red-500 mr-2"><i class="fas fa-play-circle"></i></span>
+                       <span class="group-hover:text-purple-600 group-hover:underline decoration-purple-300 underline-offset-2 transition-all">${v}</span>
+                    </a>
+                `;
+                vList.appendChild(li);
+            });
+
+            // 3. 키워드
+            const kCont = document.getElementById('keywordContainer');
+            kCont.innerHTML = '';
+            data.keywords.forEach(k => {
+                const badge = document.createElement('a');
+                badge.href = `https://www.google.com/search?q=${encodeURIComponent(k)}`;
+                badge.target = "_blank";
+                badge.className = "px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm font-medium hover:bg-blue-600 hover:text-white transition-all cursor-pointer border border-blue-100";
+                badge.innerText = `#${k}`;
+                kCont.appendChild(badge);
+            });
+        }
     </script>
 </body>
 </html>
